@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html data-fused-theme="shell">
+<head>
+<meta charset="utf-8" />
+<meta name="fused-app" />
+<title>Coffee Farm Connect</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #14100d; --panel: #1c1712; --text: #ece4da; --muted: #a3968a;
+    --line: #33291f; --accent: #c98a3d; --accent-text: #1a120a;
+    --ocean: #101c24; --land: #241c14; --land-line: #3a2e20;
+    --belt: rgba(201,138,61,.08); --card: #221b14; --good: #7fb069;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6f1ea; --panel: #fdfaf5; --text: #2a2118; --muted: #7a6c5c;
+    --line: #e2d7c8; --accent: #a5651c; --accent-text: #fff;
+    --ocean: #dbe7ec; --land: #efe6d8; --land-line: #cbbca6;
+    --belt: rgba(165,101,28,.10); --card: #f4ecdf; --good: #4b7c3b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px; color: var(--text); background: var(--bg);
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .toggle3d {
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 12px;
+  }
+  .toggle3d.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  #layout { flex: 1; display: flex; min-height: 0; }
+  #sidebar {
+    width: 320px; min-width: 320px; border-right: 1px solid var(--line);
+    background: var(--panel); display: flex; flex-direction: column; min-height: 0;
+  }
+  #filters { padding: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  #filters .row { display: flex; gap: 8px; }
+  #filters label { flex: 1; display: grid; gap: 3px; color: var(--muted); font-size: 11px; }
+  select, input[type=text], input[type=number], input[type=email], textarea {
+    width: 100%; background: var(--card); color: var(--text);
+    border: 1px solid var(--line); border-radius: 5px; padding: 5px 7px; font-size: 12px;
+  }
+  #stats { padding: 8px 12px; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--line); }
+  #list { flex: 1; overflow-y: auto; padding: 8px; }
+  .farm-card {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    padding: 10px; margin-bottom: 8px; cursor: pointer;
+  }
+  .farm-card:hover { border-color: var(--accent); }
+  .farm-card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .farm-card h3 { margin: 0 0 2px; font-size: 13px; }
+  .farm-card .loc { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+  .lst { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px;
+         padding-top: 6px; border-top: 1px dashed var(--line); }
+  .lst .v { font-weight: 600; font-size: 12px; margin-right: 2px; }
+  .chip {
+    font-size: 10px; padding: 1px 7px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted);
+  }
+  .chip.roast-Light  { border-color: #c9a35d; color: #c9a35d; }
+  .chip.roast-Medium { border-color: #a5651c; color: var(--accent); }
+  .chip.roast-Dark   { border-color: #6b4226; color: #8a6046; }
+  .price { margin-left: auto; font-weight: 600; color: var(--good); font-size: 12px; }
+
+  #mapwrap { flex: 1; position: relative; perspective: 1400px; overflow: hidden; background: var(--ocean); }
+  #map { position: absolute; inset: 0; background: var(--ocean); transition: transform .6s ease; }
+  #mapwrap.tilt #map { transform: rotateX(38deg) scale(1.35); transform-origin: 50% 60%; }
+
+  .pillar { position: relative; pointer-events: auto; }
+  .pillar .col {
+    position: absolute; left: 50%; bottom: 0; width: 10px; transform: translateX(-50%);
+    background: linear-gradient(to top, rgba(107,66,38,.55), var(--accent));
+    border-radius: 3px 3px 0 0; box-shadow: 2px 2px 6px rgba(0,0,0,.35);
+  }
+  .pillar .cap {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--panel);
+    box-shadow: 0 1px 5px rgba(0,0,0,.4);
+  }
+  .pillar.sel .cap { background: var(--good); }
+  .pillar .lbl {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    white-space: nowrap; font-size: 10px; font-weight: 600; color: var(--text);
+    text-shadow: 0 1px 3px var(--bg); pointer-events: none;
+  }
+
+  #detail {
+    position: absolute; right: 12px; top: 12px; width: 300px; max-height: calc(100% - 24px);
+    overflow-y: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px; z-index: 1000; box-shadow: 0 6px 24px rgba(0,0,0,.3);
+  }
+  #detail.hidden { display: none; }
+  #detail h2 { margin: 0 0 2px; font-size: 15px; }
+  #detail .meta { color: var(--muted); font-size: 11px; margin-bottom: 10px; line-height: 1.5; }
+  #detail .close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: var(--muted);
+                   background: none; border: none; font-size: 16px; }
+  .dlst { border: 1px solid var(--line); border-radius: 7px; padding: 8px; margin-bottom: 8px; background: var(--card); }
+  .dlst .flavors { color: var(--muted); font-size: 11px; margin: 4px 0; }
+  .dlst .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 11px; color: var(--muted); }
+  .dlst .grid b { color: var(--text); font-weight: 600; }
+  .connect-btn {
+    width: 100%; margin-top: 4px; padding: 6px; border-radius: 6px; border: none;
+    background: var(--accent); color: var(--accent-text); font-weight: 600; cursor: pointer; font-size: 12px;
+  }
+  #inqform { display: grid; gap: 6px; margin-top: 8px; }
+  #inqform .status { font-size: 11px; }
+  #inqform .status.ok { color: var(--good); }
+  #inqform .status.err { color: #d06a5a; }
+
+  .leaflet-container { font: inherit; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>☕ Coffee Farm Connect</h1>
+    <span class="sub">3D marketplace — farms ↔ buyers</span>
+    <span class="spacer"></span>
+    <button id="btn3d" class="toggle3d">3D view</button>
+  </header>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <div id="filters">
+        <div class="row">
+          <label>Roast <select id="f_roast"><option value="">Any</option></select></label>
+          <label>Process <select id="f_process"><option value="">Any</option></select></label>
+        </div>
+        <div class="row">
+          <label>Country <select id="f_country"><option value="">Any</option></select></label>
+          <label>Flavor <input id="f_flavor" type="text" placeholder="e.g. berry" /></label>
+        </div>
+        <div class="row">
+          <label>Min cup score <input id="f_score" type="number" min="80" max="95" step="0.5" placeholder="any" /></label>
+          <label>Max $/lb <input id="f_price" type="number" min="0" step="0.5" placeholder="any" /></label>
+        </div>
+      </div>
+      <div id="stats">Loading…</div>
+      <div id="list"></div>
+    </aside>
+
+    <div id="mapwrap">
+      <div id="map"></div>
+      <div id="detail" class="hidden"></div>
+    </div>
+  </div>
+
+<script>
+(async function boot() {
+  // Vendored Leaflet — no network at runtime, load via rawUrl.
+  const css = document.createElement("link");
+  css.rel = "stylesheet"; css.href = fused.rawUrl("./vendor/leaflet.css");
+  document.head.appendChild(css);
+  await new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = fused.rawUrl("./vendor/leaflet.js");
+    s.onload = res; s.onerror = () => rej(new Error("Failed to load vendored Leaflet"));
+    document.head.appendChild(s);
+  });
+
+  const $ = (id) => document.getElementById(id);
+  const P = fused.params;
+  const token = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ---------- Map + offline basemap ----------
+  const map = L.map("map", { worldCopyJump: true, zoomControl: true, attributionControl: false })
+    .setView([8, 10], 2.5);
+
+  const world = JSON.parse(await fused.readFile("./world.geo.json"));
+  let landLayer = null, beltLayer = null;
+  function drawBasemap() {
+    if (landLayer) map.removeLayer(landLayer);
+    if (beltLayer) map.removeLayer(beltLayer);
+    document.getElementById("map").style.background = token("--ocean");
+    landLayer = L.geoJSON(world, {
+      interactive: false,
+      style: { color: token("--land-line"), weight: .7, fillColor: token("--land"), fillOpacity: 1 },
+    }).addTo(map);
+    // The coffee belt: growing zone between the Tropics.
+    beltLayer = L.rectangle([[-25, -180], [25, 180]], {
+      interactive: false, stroke: false, fillColor: token("--accent"), fillOpacity: .07,
+    }).addTo(map);
+  }
+  drawBasemap();
+  new MutationObserver(drawBasemap)
+    .observe(document.documentElement, { attributeFilter: ["data-theme"] });
+
+  // ---------- Elevation-extruded "3D" markers ----------
+  let markers = {};
+  function pillarIcon(farm, selected) {
+    const h = Math.round(farm.elevation / 28);          // px column height ∝ elevation
+    return L.divIcon({
+      className: "",
+      iconSize: [16, h + 16], iconAnchor: [8, h + 16],  // anchor at column base = farm location
+      html: `<div class="pillar ${selected ? "sel" : ""}" style="width:16px;height:${h + 16}px">
+               <div class="col" style="height:${h}px"></div>
+               <div class="cap" style="bottom:${h - 8}px"></div>
+               <div class="lbl" style="bottom:${h + 10}px">${farm.name}</div>
+             </div>`,
+    });
+  }
+
+  // ---------- State via params ----------
+  const FILTERS = [
+    ["roast", "f_roast"], ["process", "f_process"], ["country", "f_country"],
+    ["flavor", "f_flavor"], ["min_score", "f_score"], ["max_price", "f_price"],
+  ];
+  FILTERS.forEach(([param, id]) => {
+    const el = $(id);
+    const evt = el.tagName === "SELECT" ? "change" : "input";
+    let t;
+    el.addEventListener(evt, () => {
+      clearTimeout(t);
+      t = setTimeout(() => P.set(param, el.value), evt === "input" ? 250 : 0);
+    });
+  });
+  $("btn3d").addEventListener("click", () =>
+    P.set("tilt", P.get("tilt") === "1" ? "0" : "1"));
+
+  let farmsData = null, optionsFilled = false;
+
+  function fillOptions(data) {
+    if (optionsFilled) return;
+    optionsFilled = true;
+    const fill = (id, vals) => {
+      const el = $(id);
+      vals.forEach(v => { const o = document.createElement("option"); o.value = o.textContent = v; el.appendChild(o); });
+    };
+    fill("f_roast", data.roasts); fill("f_process", data.processes); fill("f_country", data.countries);
+  }
+
+  function renderList(data) {
+    const sel = P.get("farm") || "";
+    $("stats").textContent =
+      `${data.farms.length} of ${data.total_farms} farms · ${data.total_listings} listings match`;
+    $("list").innerHTML = data.farms.map(f => `
+      <div class="farm-card ${f.id === sel ? "sel" : ""}" data-id="${f.id}">
+        <h3>${f.name}</h3>
+        <div class="loc">${f.region}, ${f.country} · ${f.elevation} m · ${f.size_ha} ha</div>
+        ${f.listings.map(l => `
+          <div class="lst">
+            <span class="v">${l.variety}</span>
+            <span class="chip roast-${l.roast}">${l.roast}</span>
+            <span class="chip">${l.process}</span>
+            <span class="chip">${l.score}</span>
+            <span class="price">$${l.price_usd_lb.toFixed(2)}/lb</span>
+          </div>`).join("")}
+      </div>`).join("");
+    $("list").querySelectorAll(".farm-card").forEach(c =>
+      c.addEventListener("click", () => P.set("farm", c.dataset.id)));
+  }
+
+  function renderMarkers(data) {
+    const sel = P.get("farm") || "";
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+    data.farms.forEach(f => {
+      markers[f.id] = L.marker([f.lat, f.lng], { icon: pillarIcon(f, f.id === sel) })
+        .addTo(map)
+        .on("click", () => P.set("farm", f.id));
+    });
+  }
+
+  function renderDetail(data) {
+    const sel = P.get("farm") || "";
+    const box = $("detail");
+    const farm = data.farms.find(f => f.id === sel);
+    if (!farm) { box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <button class="close" id="closeDetail">✕</button>
+      <h2>${farm.name}</h2>
+      <div class="meta">
+        ${farm.region}, ${farm.country} · ${farm.elevation} m elevation<br>
+        Farmer: ${farm.farmer} · ${farm.size_ha} ha · ${farm.contact}
+      </div>
+      ${farm.listings.map((l, i) => `
+        <div class="dlst">
+          <div class="lst" style="border:none;padding:0;margin:0">
+            <span class="v">${l.variety}</span>
+            <span class="chip roast-${l.roast}">${l.roast} roast</span>
+            <span class="price">$${l.price_usd_lb.toFixed(2)}/lb</span>
+          </div>
+          <div class="flavors">🍒 ${l.flavors.join(" · ")}</div>
+          <div class="grid">
+            <span>Process: <b>${l.process}</b></span><span>Cup score: <b>${l.score}</b></span>
+            <span>Available: <b>${l.lots_60kg}× 60 kg</b></span><span>Harvest: <b>${l.harvest}</b></span>
+          </div>
+          <button class="connect-btn" data-i="${i}">Connect with farmer</button>
+        </div>`).join("")}
+      <div id="inqwrap"></div>`;
+    $("closeDetail").addEventListener("click", () => P.set("farm", ""));
+    box.querySelectorAll(".connect-btn").forEach(b =>
+      b.addEventListener("click", () => showInquiry(farm, farm.listings[+b.dataset.i])));
+  }
+
+  function showInquiry(farm, listing) {
+    $("inqwrap").innerHTML = `
+      <form id="inqform">
+        <b style="font-size:12px">Inquiry — ${listing.variety} @ ${farm.name}</b>
+        <input id="q_name" type="text" placeholder="Your name / company *" required>
+        <input id="q_email" type="email" placeholder="Email *" required>
+        <input id="q_qty" type="text" placeholder="Quantity (e.g. 5× 60 kg)">
+        <textarea id="q_msg" rows="3" placeholder="Message to the farmer"></textarea>
+        <button class="connect-btn" id="q_send" type="submit">Send inquiry</button>
+        <div class="status" id="q_status"></div>
+      </form>`;
+    $("inqform").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("q_send"), st = $("q_status");
+      btn.disabled = true; st.className = "status"; st.textContent = "Sending…";
+      try {
+        const r = await fused.runPython("./inquire.py", {
+          farm_id: farm.id, farm_name: farm.name, variety: listing.variety,
+          buyer_name: $("q_name").value, buyer_email: $("q_email").value,
+          quantity: $("q_qty").value, message: $("q_msg").value,
+        }, { key: null });   // a write must always complete — opt out of stale-cancel
+        if (r.ok) { st.className = "status ok"; st.textContent = `Sent ✓ (inquiry #${r.count} saved to inquiries.json)`; }
+        else { st.className = "status err"; st.textContent = r.error; btn.disabled = false; }
+      } catch (err) {
+        st.className = "status err"; st.textContent = err.message; btn.disabled = false;
+      }
+    });
+  }
+
+  let lastSel = null;
+  async function draw() {
+    // reflect URL state into controls
+    FILTERS.forEach(([param, id]) => {
+      const el = $(id), v = P.get(param) || "";
+      if (document.activeElement !== el) el.value = v;
+    });
+    const tilt = P.get("tilt") === "1";
+    $("mapwrap").classList.toggle("tilt", tilt);
+    $("btn3d").classList.toggle("on", tilt);
+
+    farmsData = await fused.runPython("./farms.py", {
+      roast: P.get("roast") || "", process: P.get("process") || "",
+      flavor: P.get("flavor") || "", country: P.get("country") || "",
+      min_score: P.get("min_score") || "0", max_price: P.get("max_price") || "0",
+    });
+    fillOptions(farmsData);
+    renderList(farmsData);
+    renderMarkers(farmsData);
+    renderDetail(farmsData);
+
+    const sel = P.get("farm") || "";
+    if (sel && sel !== lastSel) {
+      const farm = farmsData.farms.find(f => f.id === sel);
+      if (farm) map.flyTo([farm.lat, farm.lng], Math.max(map.getZoom(), 5), { duration: .8 });
+    }
+    lastSel = sel;
+  }
+
+  P.onChange(draw);
+  await draw();
+})();
+</script>
+</body>
+</html>
