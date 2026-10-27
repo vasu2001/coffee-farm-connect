@@ -1,0 +1,12 @@
+# Coffee Farm Connect — Python environment.
+# farms.py and inquire.py are stdlib-only (json, os, datetime), so no extra
+# packages are declared; an empty list keeps the folder on the app interpreter.
+[project]
+name = "coffee-farm-connect"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+# Not a distribution — this folder is a set of scripts, not something to build.
+[tool.uv]
+package = false
